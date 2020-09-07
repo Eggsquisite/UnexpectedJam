@@ -4,17 +4,54 @@ using UnityEngine;
 
 public class PlayerCombat : MonoBehaviour
 {
-    [SerializeField] float attackRange = 0.25f;
+    [Header("Components")]
+    [SerializeField] Animator anim;
+    [SerializeField] PlayerMovement pm;
 
-    // Start is called before the first frame update
-    void Start()
+    [Header("Combat")]
+    [SerializeField] float attackRange = 0.25f;
+    [SerializeField] float moveSpeedMult = 0.25f;
+
+    private int attackCombo = 0;
+    private float baseMaxSpeed;
+
+    private void Start()
     {
-        
+        baseMaxSpeed = pm.GetMaxSpeed();
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        if (Input.GetMouseButtonDown(0) && attackCombo == 0)
+            MeleeOne();
+        else if (Input.GetMouseButtonDown(0) && attackCombo == 1)
+            MeleeTwo();
+    }
+
+    private void MeleeOne()
+    {
+        pm.SetMaxSpeed(baseMaxSpeed * moveSpeedMult);
+        anim.SetBool("meleeOne", true);
+    }
+
+    private void MeleeTwo()
+    {
+        pm.SetMaxSpeed(baseMaxSpeed * moveSpeedMult);
+        anim.SetBool("meleeOne", false);
+        anim.SetBool("meleeTwo", true);
+    }
+
+    public void SetAttackCombo(int attackNum)
+    {
+        attackCombo = attackNum;
+    }
+
+    public void ResetAttack()
+    {
+        attackCombo = 0;
+        pm.SetMaxSpeed(baseMaxSpeed);
+        anim.SetBool("meleeOne", false);
+        anim.SetBool("meleeTwo", false);
     }
 }

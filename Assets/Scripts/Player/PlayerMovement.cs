@@ -10,14 +10,14 @@ public class PlayerMovement : MonoBehaviour
     bool facingRight = true;
 
     [Header("Vertical Movement")]
-    private float jumpTimer;
-    [SerializeField] float jumpForce = 15f;
     [SerializeField] float jumpDelay = 0.25f;
+    [SerializeField] float jumpForce = 15f;
+    private float jumpTimer;
 
     [Header("Components")]
-    private Rigidbody2D rb;
     [SerializeField] Animator anim;
     [SerializeField] LayerMask groundLayer;
+    private Rigidbody2D rb;
 
     [Header("Physics")]
     [SerializeField] float maxSpeed = 7f;
@@ -95,7 +95,7 @@ public class PlayerMovement : MonoBehaviour
         if (onGround)
         {
             anim.SetBool("falling", false);
-            anim.SetTrigger("land");
+            anim.SetBool("land", true);
             if (Mathf.Abs(movement.x) < 0.4f || changingDirections)
                 rb.drag = linearDrag;
             else
@@ -106,6 +106,7 @@ public class PlayerMovement : MonoBehaviour
         else
         {
             anim.SetBool("falling", true);
+            anim.SetBool("land", false);
             rb.gravityScale = gravity;
             rb.drag = linearDrag * 0.15f;
             if (rb.velocity.y < 0)
@@ -113,8 +114,16 @@ public class PlayerMovement : MonoBehaviour
             else if (rb.velocity.y > 0 && !Input.GetButton("Jump"))
                 rb.gravityScale = gravity * (fallMultiplier / 2);
         }
+    }
 
+    public void SetMaxSpeed(float newSpeed)
+    {
+        maxSpeed = newSpeed;
+    }
 
+    public float GetMaxSpeed()
+    {
+        return maxSpeed;
     }
 
     private void OnDrawGizmos()
