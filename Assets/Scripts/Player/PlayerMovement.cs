@@ -6,33 +6,55 @@ public class PlayerMovement : MonoBehaviour
 {
     [Header("Horizontal Movement")]
     [SerializeField] float moveSpeed = 15f;
-    Vector2 direction;
+    Vector2 movement;
     bool facingRight = true;
+
+    [Header("Vertical Movement")]
+    private float jumpTimer;
+    [SerializeField] float jumpForce = 15f;
+    [SerializeField] float jumpDelay = 0.25f;
 
     [Header("Components")]
     private Rigidbody2D rb;
-    private Animator anim;
+    [SerializeField] Animator anim;
+    [SerializeField] LayerMask groundLayer;
 
     [Header("Physics")]
     [SerializeField] float maxSpeed = 7f;
     [SerializeField] float linearDrag = 4f;
+    [SerializeField] float gravity = 1f;
+    [SerializeField] float fallMultiplier = 5f;
+
+    [Header("Collision")]
+     public bool onGround = false;
+    [SerializeField] float groundLength = 0.5f;
+    [SerializeField] Vector3 colliderOffset;
 
     // Start is called before the first frame update
     void Start()
     {
         if (rb == null) rb = GetComponent<Rigidbody2D>();
-        if (anim == null) anim = GetComponent<Animator>();
     }
 
     // Update is called once per frame
     void Update()
     {
-        direction = new Vector2(Input.GetAxisRaw("Horizontal"), transform.position.y);
+        onGround = Physics2D.Raycast(transform.position + colliderOffset, Vector2.down, groundLength, groundLayer) 
+            || Physics2D.Raycast(transform.position - colliderOffset, Vector2.down, groundLength, groundLayer);
+
+        if (Input.GetButtonDown("Jump"))
+            jumpTimer = Time.time + jumpDelay;
+
+        movement = new Vector2(Input.GetAxisRaw("Horizontal"), transform.position.y);
     }
 
     private void FixedUpdate()
     {
-        Movement(direction.x);
+        Movement(movement.x);
+
+        if (jumpTimer > Time.time && onGround)
+            Jump();
+
         ModifyPhysics();
     }
 
@@ -48,21 +70,57 @@ public class PlayerMovement : MonoBehaviour
             rb.velocity = new Vector2(Mathf.Sign(rb.velocity.x) * maxSpeed, rb.velocity.y);
 
         anim.SetFloat("horizontal", Mathf.Abs(rb.velocity.x));
+        anim.SetFloat("vertical", Mathf.Sign(rb.velocity.y));
+    }
+
+    void Jump()
+    {
+        anim.SetTrigger("jump");
+        rb.velocity = new Vector2(rb.velocity.x, 0);
+        rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        jumpTimer = 0f;
     }
 
     void Flip()
     {
         facingRight = !facingRight;
-        transform.rotation = Quaternion.Euler(0, facingRight ? 0 : 180, 0);
+        //transform.rotation = Quaternion.Euler(0, facingRight ? 0 : 180, 0);
+        transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
     }
 
     void ModifyPhysics()
     {
-        bool changingDirections = (direction.x > 0 && rb.velocity.x < 0) || (direction.x < 0 && rb.velocity.x > 0);
+        bool changingDirections = (movement.x > 0 && rb.velocity.x < 0) || (movement.x < 0 && rb.velocity.x > 0);
 
-        if (Mathf.Abs(direction.x) < 0.4f || changingDirections)
-            rb.drag = linearDrag;
+        if (onGround)
+        {
+            anim.SetBool("falling", false);
+            anim.SetTrigger("land");
+            if (Mathf.Abs(movement.x) < 0.4f || changingDirections)
+                rb.drag = linearDrag;
+            else
+                rb.drag = 0;
+
+            rb.gravityScale = 0;
+        }
         else
-            rb.drag = 0;
+        {
+            anim.SetBool("falling", true);
+            rb.gravityScale = gravity;
+            rb.drag = linearDrag * 0.15f;
+            if (rb.velocity.y < 0)
+                rb.gravityScale = gravity * fallMultiplier;
+            else if (rb.velocity.y > 0 && !Input.GetButton("Jump"))
+                rb.gravityScale = gravity * (fallMultiplier / 2);
+        }
+
+
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(transform.position + colliderOffset, transform.position + Vector3.down * groundLength);
+        Gizmos.DrawLine(transform.position - colliderOffset, transform.position + Vector3.down * groundLength);
     }
 }
