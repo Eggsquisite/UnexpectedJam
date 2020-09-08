@@ -6,7 +6,7 @@ public class PlayerCombat : MonoBehaviour
 {
     [Header("Components")]
     [SerializeField] Animator anim;
-    [SerializeField] PlayerMovement pm;
+    //[SerializeField] PlayerMovement pm;
 
     [Header("Combat")]
     [SerializeField] float attackRange = 0.25f;
@@ -17,7 +17,7 @@ public class PlayerCombat : MonoBehaviour
 
     private void Start()
     {
-        baseMaxSpeed = pm.GetMaxSpeed();
+        //baseMaxSpeed = pm.GetMoveSpeed();
     }
 
     // Update is called once per frame
@@ -31,13 +31,13 @@ public class PlayerCombat : MonoBehaviour
 
     private void MeleeOne()
     {
-        pm.SetMaxSpeed(baseMaxSpeed * moveSpeedMult);
+        //pm.SetMoveSpeed(baseMaxSpeed * moveSpeedMult);
         anim.SetBool("meleeOne", true);
     }
 
     private void MeleeTwo()
     {
-        pm.SetMaxSpeed(baseMaxSpeed * moveSpeedMult);
+        //pm.SetMoveSpeed(baseMaxSpeed * moveSpeedMult);
         anim.SetBool("meleeOne", false);
         anim.SetBool("meleeTwo", true);
     }
@@ -50,7 +50,7 @@ public class PlayerCombat : MonoBehaviour
     public void ResetAttack()
     {
         attackCombo = 0;
-        pm.SetMaxSpeed(baseMaxSpeed);
+        //pm.SetMoveSpeed(baseMaxSpeed);
         anim.SetBool("meleeOne", false);
         anim.SetBool("meleeTwo", false);
     }

@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour
+public class Player : MonoBehaviour
 {
     [Header("Horizontal Movement")]
     [SerializeField] float moveSpeed = 15f;
-    Vector2 movement;
-    bool facingRight = true;
+    private Vector2 movement;
+    private bool facingRight = true;
 
     [Header("Vertical Movement")]
     [SerializeField] float jumpDelay = 0.25f;
@@ -24,16 +24,30 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] float linearDrag = 4f;
     [SerializeField] float gravity = 1f;
     [SerializeField] float fallMultiplier = 5f;
+    private float baseMaxSpeed;
+    private float baseFallMultiplier;
 
     [Header("Collision")]
-     public bool onGround = false;
     [SerializeField] float groundLength = 0.5f;
     [SerializeField] Vector3 colliderOffset;
+     public bool onGround = false;
+
+    [Header("Combat")]
+    [SerializeField] float attackRange = 0.25f;
+    [SerializeField] float attackMoveSpeedMult = 0.25f;
+    public bool archer = false;
+    public bool soldier = false;
+
+    private int attackCombo = 0;
+    private bool attacking = false;
+    private bool aiming = false;
 
     // Start is called before the first frame update
     void Start()
     {
         if (rb == null) rb = GetComponent<Rigidbody2D>();
+        baseMaxSpeed = maxSpeed;
+        baseFallMultiplier = fallMultiplier;
     }
 
     // Update is called once per frame
@@ -45,14 +59,39 @@ public class PlayerMovement : MonoBehaviour
         if (Input.GetButtonDown("Jump"))
             jumpTimer = Time.time + jumpDelay;
 
-        movement = new Vector2(Input.GetAxisRaw("Horizontal"), transform.position.y);
+        if (onGround)
+        {
+            if (Input.GetMouseButtonDown(0) && attackCombo == 0)
+                MeleeOne();
+            else if (Input.GetMouseButtonDown(0) && attackCombo == 1)
+                MeleeTwo();
+        }
+
+        if (archer)
+        {
+            if (Input.GetMouseButtonDown(1) && !aiming)
+                Aim();
+            else if (Input.GetMouseButtonUp(1) && aiming)
+                Fire();
+        }
+
+        if (attacking || aiming)
+            movement = new Vector2(0, 0);
+        else if (!attacking)
+            movement = new Vector2(Input.GetAxisRaw("Horizontal"), transform.position.y);
+
+        if (!attacking)
+        {
+            if ((movement.x > 0 && !facingRight) || (movement.x < 0 && facingRight))
+                Flip();
+        }
     }
 
     private void FixedUpdate()
     {
         Movement(movement.x);
 
-        if (jumpTimer > Time.time && onGround)
+        if (jumpTimer > Time.time && onGround && !attacking && !aiming)
             Jump();
 
         ModifyPhysics();
@@ -62,14 +101,10 @@ public class PlayerMovement : MonoBehaviour
     {   
         rb.AddForce(Vector2.right * direction * moveSpeed);
 
-
-        if ((direction > 0 && !facingRight) || (direction < 0 && facingRight))
-            Flip();
-
         if (Mathf.Abs(rb.velocity.x) > maxSpeed)
             rb.velocity = new Vector2(Mathf.Sign(rb.velocity.x) * maxSpeed, rb.velocity.y);
 
-        anim.SetFloat("horizontal", Mathf.Abs(rb.velocity.x));
+        anim.SetFloat("horizontal", Mathf.Abs(movement.x));
         anim.SetFloat("vertical", Mathf.Sign(rb.velocity.y));
     }
 
@@ -116,14 +151,62 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    public void SetMaxSpeed(float newSpeed)
+    /// <summary>
+    //  COMBAT 
+    /// </summary>
+    /// 
+
+    private void MeleeOne()
     {
-        maxSpeed = newSpeed;
+        maxSpeed = baseMaxSpeed * attackMoveSpeedMult;
+        attacking = true;
+        anim.SetBool("meleeOne", true);
     }
 
-    public float GetMaxSpeed()
+    private void MeleeTwo()
     {
-        return maxSpeed;
+        anim.SetBool("meleeOne", false);
+        anim.SetBool("meleeTwo", true);
+    }
+
+    private void SetAttackCombo(int attackNum)
+    {
+        attackCombo = attackNum;
+    }
+
+    private void ResetAttack()
+    {
+        aiming = false;
+        attackCombo = 0;
+        attacking = false;
+        maxSpeed = baseMaxSpeed;
+        anim.SetBool("meleeOne", false);
+        anim.SetBool("meleeTwo", false);
+        anim.SetBool("fire", false);
+        anim.SetBool("aim", false);
+    }
+
+    private void Aim()
+    {
+        aiming = true;
+        anim.Play("drawback");
+        anim.SetBool("aim", true);
+        movement = new Vector2(0, 0);
+        fallMultiplier = baseFallMultiplier / 2;
+    }
+
+    private void Reholster()
+    {
+        aiming = false;
+        anim.SetBool("aim", false);
+    }
+
+    private void Fire()
+    {
+        aiming = false;
+        fallMultiplier = baseFallMultiplier;
+        anim.SetBool("aim", false);
+        anim.SetBool("fire", true);
     }
 
     private void OnDrawGizmos()
