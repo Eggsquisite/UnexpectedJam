@@ -13,6 +13,9 @@ public class Player : MonoBehaviour
     [SerializeField] float jumpDelay = 0.25f;
     [SerializeField] float jumpForce = 15f;
     private float jumpTimer;
+    private bool dashReady = true;
+    private float dashTimer = 0f;
+    public float dashSpeed = 20f, dashMaxCD = 3f;
 
     [Header("Components")]
     [SerializeField] Animator anim;
@@ -24,7 +27,6 @@ public class Player : MonoBehaviour
     [SerializeField] float linearDrag = 4f;
     [SerializeField] float gravity = 1f;
     [SerializeField] float fallMultiplier = 5f;
-    private float baseMaxSpeed;
 
     [Header("Collision")]
     [SerializeField] float groundLength = 0.5f;
@@ -56,36 +58,42 @@ public class Player : MonoBehaviour
     void Start()
     {
         if (rb == null) rb = GetComponent<Rigidbody2D>();
-        baseMaxSpeed = maxSpeed;
         currentHealth = maxHealth;
     }
 
     // Update is called once per frame
     void Update()
     {
+        /// MOVEMENT INPUT ///
+        
+        // Stop movement when attacking/aiming
+        if (attacking || aiming) movement = new Vector2(0, 0);
+        else if (!attacking || !aiming) movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
+
         onGround = Physics2D.Raycast(transform.position + colliderOffset, Vector2.down, groundLength, groundLayer) 
             || Physics2D.Raycast(transform.position - colliderOffset, Vector2.down, groundLength, groundLayer);
 
         // Jump delay before hitting the ground
         if (Input.GetButtonDown("Jump")) jumpTimer = Time.time + jumpDelay;
 
-        // Melee attack for both characters
-        if (onGround) MeleeAttack();
+        // Disallow character flipping when attacking (does not apply to archer shooting)
+        if (!attacking) Flip();
+        //if ((movement.x > 0 && !facingRight) || (movement.x < 0 && facingRight))
 
-        // Attack for archer
-        if (archer && attackReady) ArcherAttack();
+        if (!dashReady) DashCooldown();
+
+        if (Input.GetKeyDown(KeyCode.LeftShift) && dashReady) Dash();
+
+        /// COMBAT INPUT ///
 
         // Cooldown for attacks
         if (!attackReady) AttackCooldown();
 
-        // Stop movement when attacking/aiming
-        if (attacking || aiming) movement = new Vector2(0, 0);
-        else if (!attacking || !aiming) movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
+        // Melee attack for both characters
+        if (onGround) MeleeCombo();
 
-        // Disallow character flipping when attacking (does not apply to archer shooting)
-        if (!attacking)
-            if ((movement.x > 0 && !facingRight) || (movement.x < 0 && facingRight))
-                Flip();
+        // Attack for archer
+        if (archer && attackReady) ArcherAttack();
     }
 
     private void FixedUpdate()
@@ -119,11 +127,35 @@ public class Player : MonoBehaviour
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
     }
 
+    void Dash()
+    {
+        dashReady = false;
+        anim.SetTrigger("dash");
+        if (transform.rotation.y == 0)
+            rb.AddForce(Vector2.right * dashSpeed, ForceMode2D.Impulse);
+        else
+            rb.AddForce(Vector2.left * dashSpeed, ForceMode2D.Impulse);
+    }
+
+    void DashCooldown()
+    {
+        if (dashTimer < dashMaxCD)
+            dashTimer += Time.deltaTime;
+        else if (dashTimer >= dashMaxCD)
+        {
+            dashTimer = 0f;
+            dashReady = true;
+        }
+    }
+
     void Flip()
     {
-        facingRight = !facingRight;
-        transform.rotation = Quaternion.Euler(0, facingRight ? 0 : 180, 0);
-        //transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
+        if ((Input.GetAxisRaw("Horizontal") > 0 && !facingRight) || (Input.GetAxisRaw("Horizontal") < 0 && facingRight))
+        {
+            facingRight = !facingRight;
+            transform.rotation = Quaternion.Euler(0, facingRight ? 0 : 180, 0);
+            //transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
+        }
     }
 
     void ModifyPhysics()
@@ -134,19 +166,20 @@ public class Player : MonoBehaviour
         {
             anim.SetBool("falling", false);
             anim.SetBool("land", true);
+            rb.gravityScale = 0;
+
             if (Mathf.Abs(movement.x) < 0.4f || changingDirections)
                 rb.drag = linearDrag;
             else
                 rb.drag = 0;
-
-            rb.gravityScale = 0;
         }
         else
         {
-            anim.SetBool("falling", true);
-            anim.SetBool("land", false);
             rb.gravityScale = gravity;
             rb.drag = linearDrag * 0.15f;
+            anim.SetBool("land", false);
+            anim.SetBool("falling", true);
+
             if (rb.velocity.y < 0)
                 rb.gravityScale = gravity * fallMultiplier;
             else if (rb.velocity.y > 0 && !Input.GetButton("Jump"))
@@ -155,7 +188,7 @@ public class Player : MonoBehaviour
     }
 
     ///
-    /// HEALTH MANAGEMENT ///
+    /// HEALTH MANAGEMENT ////////////////////////////////////////////////////////////////////////
     /// 
 
     public void TakeDamage(int damage)
@@ -174,31 +207,65 @@ public class Player : MonoBehaviour
         // Destroy gameObject 
     }
 
-    /// <summary>
-    //  COMBAT 
-    /// </summary>
-    /// 
+    ///  COMBAT ////////////////////////////////////////////////////////////////////////
 
-    private void MeleeAttack()
+    private void MeleeCombo()
     {
-        if (Input.GetMouseButtonDown(0) && attackCombo == 0)
+        if (Input.GetMouseButtonDown(0) && attackCombo == 0 && attackReady)
             MeleeOne();
         else if (Input.GetMouseButtonDown(0) && attackCombo == 1)
             MeleeTwo();
     }
 
-
     private void MeleeOne()
     {
         attacking = true;
+        ResetAttackCD();
         anim.SetBool("meleeOne", true);
     }
 
     private void MeleeTwo()
     {
-        attackReady = false;
+        attacking = true;
+        ResetAttackCD();
         anim.SetBool("meleeOne", false);
         anim.SetBool("meleeTwo", true);
+    }
+
+    private void SetAttackCombo(int attackNum)
+    {
+        attackCombo = attackNum;
+    }
+
+    private void ResetAttackCD()
+    {
+        attackTimer = 0f;
+        attackReady = false;
+    }
+
+    private void AttackCooldown()
+    {
+        if (attackTimer < attackCD)
+            attackTimer += Time.deltaTime;
+        else if (attackTimer >= attackCD)
+        {
+            attackTimer = 0f;
+            attackReady = true;
+        }
+    }
+
+    private void AttackReset()
+    {
+        aiming = false;
+        attackCombo = 0;
+        attacking = false;
+        anim.SetBool("meleeOne", false);
+        anim.SetBool("meleeTwo", false);
+    }
+
+    private void FlipStatus(int status)
+    {
+        attacking = status == 0 ? false : true;
     }
 
     private void LightAttack()
@@ -217,21 +284,7 @@ public class Player : MonoBehaviour
             enemy.GetComponent<Enemy>().TakeDamage(heavyDmg);
     }
 
-    private void SetAttackCombo(int attackNum)
-    {
-        attackCombo = attackNum;
-    }
-
-    private void ResetAttack()
-    {
-        aiming = false;
-        attackCombo = 0;
-        attacking = false;
-        anim.SetBool("meleeOne", false);
-        anim.SetBool("meleeTwo", false);
-    }
-
-    // ARCHER //
+    // ARCHER //////////////////////////////////////////////////////////////////////
 
     private void ArcherAttack()
     {
@@ -251,19 +304,9 @@ public class Player : MonoBehaviour
     private void Fire()
     {
         aiming = false;
+        ResetAttackCD();
         anim.ResetTrigger("aim");
         Instantiate(arrow, attackPoint.position, transform.rotation);
-    }
-
-    private void AttackCooldown()
-    {
-        if (attackTimer < attackCD)
-            attackTimer += Time.deltaTime;
-        else if (attackTimer >= attackCD)
-        {
-            attackTimer = 0f;
-            attackReady = true;
-        }
     }
 
     private void OnDrawGizmos()
