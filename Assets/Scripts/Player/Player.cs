@@ -33,11 +33,16 @@ public class Player : MonoBehaviour
      public bool onGround = false;
 
     [Header("Combat")]
-    [SerializeField] float attackRange = 0.25f;
-    [SerializeField] float attackMoveSpeedMult = 0.25f;
     public bool archer = false;
     public bool soldier = false;
+    [SerializeField] float attackRange = 0.25f;
+    [SerializeField] float attackMoveSpeedMult = 0.25f;
+    public float attackCD = 0.5f;
+    public GameObject arrow;
+    public Transform attackPoint;
 
+    private float attackTimer = 0f;
+    private bool attackReady = true;
     private int attackCombo = 0;
     private bool attacking = false;
     private bool aiming = false;
@@ -60,31 +65,27 @@ public class Player : MonoBehaviour
             jumpTimer = Time.time + jumpDelay;
 
         if (onGround)
-        {
-            if (Input.GetMouseButtonDown(0) && attackCombo == 0)
-                MeleeOne();
-            else if (Input.GetMouseButtonDown(0) && attackCombo == 1)
-                MeleeTwo();
-        }
+            MeleeAttack();
 
-        if (archer)
-        {
-            if (Input.GetMouseButtonDown(1) && !aiming)
-                Aim();
-            else if (Input.GetMouseButtonUp(1) && aiming)
-                Fire();
-        }
+        if (archer && attackReady)
+            ArcherAttack();
 
         if (attacking || aiming)
             movement = new Vector2(0, 0);
-        else if (!attacking)
-            movement = new Vector2(Input.GetAxisRaw("Horizontal"), transform.position.y);
+        else if (!attacking || !aiming)
+        {
+            movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
+            Debug.Log("moving is fine");
+        }
 
         if (!attacking)
         {
             if ((movement.x > 0 && !facingRight) || (movement.x < 0 && facingRight))
                 Flip();
         }
+
+        if (!attackReady)
+            AttackCooldown();
     }
 
     private void FixedUpdate()
@@ -119,8 +120,8 @@ public class Player : MonoBehaviour
     void Flip()
     {
         facingRight = !facingRight;
-        //transform.rotation = Quaternion.Euler(0, facingRight ? 0 : 180, 0);
-        transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
+        transform.rotation = Quaternion.Euler(0, facingRight ? 0 : 180, 0);
+        //transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
     }
 
     void ModifyPhysics()
@@ -156,6 +157,14 @@ public class Player : MonoBehaviour
     /// </summary>
     /// 
 
+    private void MeleeAttack()
+    {
+        if (Input.GetMouseButtonDown(0) && attackCombo == 0)
+            MeleeOne();
+        else if (Input.GetMouseButtonDown(0) && attackCombo == 1)
+            MeleeTwo();
+    }
+
     private void MeleeOne()
     {
         maxSpeed = baseMaxSpeed * attackMoveSpeedMult;
@@ -165,6 +174,7 @@ public class Player : MonoBehaviour
 
     private void MeleeTwo()
     {
+        attackReady = false;
         anim.SetBool("meleeOne", false);
         anim.SetBool("meleeTwo", true);
     }
@@ -182,31 +192,42 @@ public class Player : MonoBehaviour
         maxSpeed = baseMaxSpeed;
         anim.SetBool("meleeOne", false);
         anim.SetBool("meleeTwo", false);
-        anim.SetBool("fire", false);
-        anim.SetBool("aim", false);
+    }
+
+    // ARCHER //
+
+    private void ArcherAttack()
+    {
+        if (Input.GetMouseButtonDown(1) && !aiming)
+            Aim();
+        //else if (Input.GetMouseButtonUp(1) && aiming)
+            //Fire();
     }
 
     private void Aim()
     {
         aiming = true;
         anim.Play("drawback");
-        anim.SetBool("aim", true);
-        movement = new Vector2(0, 0);
-        fallMultiplier = baseFallMultiplier / 2;
-    }
-
-    private void Reholster()
-    {
-        aiming = false;
-        anim.SetBool("aim", false);
+        anim.SetTrigger("aim");
+        //fallMultiplier = baseFallMultiplier / 2;
     }
 
     private void Fire()
     {
         aiming = false;
-        fallMultiplier = baseFallMultiplier;
-        anim.SetBool("aim", false);
-        anim.SetBool("fire", true);
+        anim.ResetTrigger("aim");
+        var tempArrow = Instantiate(arrow, attackPoint.position, transform.rotation);
+    }
+
+    private void AttackCooldown()
+    {
+        if (attackTimer < attackCD)
+            attackTimer += Time.deltaTime;
+        else if (attackTimer >= attackCD)
+        {
+            attackTimer = 0f;
+            attackReady = true;
+        }
     }
 
     private void OnDrawGizmos()
