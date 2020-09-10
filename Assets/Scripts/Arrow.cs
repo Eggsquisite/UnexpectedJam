@@ -4,8 +4,9 @@ using UnityEngine;
 
 public class Arrow : MonoBehaviour
 {
-
-    [SerializeField] float speed = 5f;
+    [Header("Stats")]
+    public float speed = 5f;
+    public int damage = 10;
     
     Animator anim;
     bool facingRight = true;
@@ -28,13 +29,18 @@ public class Arrow : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D coll)
     {
-        hit = true;
-        anim.SetTrigger("hit");
-        Debug.Log("hit: " + coll.name);
-
-        if (coll.tag == "Enemy")
+        if (!hit)
         {
-            transform.parent = coll.transform;
+            // Hit wall/background
+            hit = true;
+            anim.SetTrigger("hit");
+
+            if (coll.tag == "Enemy")
+            {
+                Debug.Log("hit: " + coll.name);
+                transform.SetParent(coll.transform);
+                coll.transform.GetComponent<Enemy>().TakeDamage(damage);
+            }
         }
     }
 }

@@ -25,34 +25,39 @@ public class Player : MonoBehaviour
     [SerializeField] float gravity = 1f;
     [SerializeField] float fallMultiplier = 5f;
     private float baseMaxSpeed;
-    private float baseFallMultiplier;
 
     [Header("Collision")]
     [SerializeField] float groundLength = 0.5f;
     [SerializeField] Vector3 colliderOffset;
      public bool onGround = false;
 
+    [Header("Player Stats")]
+    public int maxHealth = 50;
+    private int currentHealth;
+
     [Header("Combat")]
-    public bool archer = false;
-    public bool soldier = false;
-    [SerializeField] float attackRange = 0.25f;
-    [SerializeField] float attackMoveSpeedMult = 0.25f;
-    public float attackCD = 0.5f;
     public GameObject arrow;
     public Transform attackPoint;
+    public LayerMask enemyLayers;
+    public bool archer = false;
+    public bool soldier = false;
+    public float attackCD = 1f;
+    public float attackRange = 0.25f;
+    public int lightDmg = 10;
+    public int heavyDmg = 25;
 
-    private float attackTimer = 0f;
-    private bool attackReady = true;
     private int attackCombo = 0;
-    private bool attacking = false;
+    private float attackTimer = 0f;
     private bool aiming = false;
+    private bool attacking = false;
+    private bool attackReady = true;
 
     // Start is called before the first frame update
     void Start()
     {
         if (rb == null) rb = GetComponent<Rigidbody2D>();
         baseMaxSpeed = maxSpeed;
-        baseFallMultiplier = fallMultiplier;
+        currentHealth = maxHealth;
     }
 
     // Update is called once per frame
@@ -61,38 +66,34 @@ public class Player : MonoBehaviour
         onGround = Physics2D.Raycast(transform.position + colliderOffset, Vector2.down, groundLength, groundLayer) 
             || Physics2D.Raycast(transform.position - colliderOffset, Vector2.down, groundLength, groundLayer);
 
-        if (Input.GetButtonDown("Jump"))
-            jumpTimer = Time.time + jumpDelay;
+        // Jump delay before hitting the ground
+        if (Input.GetButtonDown("Jump")) jumpTimer = Time.time + jumpDelay;
 
-        if (onGround)
-            MeleeAttack();
+        // Melee attack for both characters
+        if (onGround) MeleeAttack();
 
-        if (archer && attackReady)
-            ArcherAttack();
+        // Attack for archer
+        if (archer && attackReady) ArcherAttack();
 
-        if (attacking || aiming)
-            movement = new Vector2(0, 0);
-        else if (!attacking || !aiming)
-        {
-            movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
-            Debug.Log("moving is fine");
-        }
+        // Cooldown for attacks
+        if (!attackReady) AttackCooldown();
 
+        // Stop movement when attacking/aiming
+        if (attacking || aiming) movement = new Vector2(0, 0);
+        else if (!attacking || !aiming) movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
+
+        // Disallow character flipping when attacking (does not apply to archer shooting)
         if (!attacking)
-        {
             if ((movement.x > 0 && !facingRight) || (movement.x < 0 && facingRight))
                 Flip();
-        }
-
-        if (!attackReady)
-            AttackCooldown();
     }
 
     private void FixedUpdate()
     {
+        // Character movement with direction
         Movement(movement.x);
 
-        if (jumpTimer > Time.time && onGround && !attacking && !aiming)
+        if (jumpTimer > Time.time && onGround && !attacking)
             Jump();
 
         ModifyPhysics();
@@ -111,10 +112,11 @@ public class Player : MonoBehaviour
 
     void Jump()
     {
+        rb.drag = 0;
+        jumpTimer = 0f;
         anim.SetTrigger("jump");
         rb.velocity = new Vector2(rb.velocity.x, 0);
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
-        jumpTimer = 0f;
     }
 
     void Flip()
@@ -152,6 +154,26 @@ public class Player : MonoBehaviour
         }
     }
 
+    ///
+    /// HEALTH MANAGEMENT ///
+    /// 
+
+    public void TakeDamage(int damage)
+    {
+        // launch the player in the direction
+        currentHealth -= damage;
+        // player hurt sound
+
+        if (currentHealth <= 0)
+            Die();
+    }
+
+    private void Die()
+    {
+        anim.SetTrigger("death");
+        // Destroy gameObject 
+    }
+
     /// <summary>
     //  COMBAT 
     /// </summary>
@@ -165,9 +187,9 @@ public class Player : MonoBehaviour
             MeleeTwo();
     }
 
+
     private void MeleeOne()
     {
-        maxSpeed = baseMaxSpeed * attackMoveSpeedMult;
         attacking = true;
         anim.SetBool("meleeOne", true);
     }
@@ -177,6 +199,22 @@ public class Player : MonoBehaviour
         attackReady = false;
         anim.SetBool("meleeOne", false);
         anim.SetBool("meleeTwo", true);
+    }
+
+    private void LightAttack()
+    {
+        Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayers);
+
+        foreach (Collider2D enemy in hitEnemies)
+            enemy.GetComponent<Enemy>().TakeDamage(lightDmg);
+    }
+
+    private void HeavyAttack()
+    {
+        Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayers);
+
+        foreach (Collider2D enemy in hitEnemies)
+            enemy.GetComponent<Enemy>().TakeDamage(heavyDmg);
     }
 
     private void SetAttackCombo(int attackNum)
@@ -189,7 +227,6 @@ public class Player : MonoBehaviour
         aiming = false;
         attackCombo = 0;
         attacking = false;
-        maxSpeed = baseMaxSpeed;
         anim.SetBool("meleeOne", false);
         anim.SetBool("meleeTwo", false);
     }
@@ -209,14 +246,13 @@ public class Player : MonoBehaviour
         aiming = true;
         anim.Play("drawback");
         anim.SetTrigger("aim");
-        //fallMultiplier = baseFallMultiplier / 2;
     }
 
     private void Fire()
     {
         aiming = false;
         anim.ResetTrigger("aim");
-        var tempArrow = Instantiate(arrow, attackPoint.position, transform.rotation);
+        Instantiate(arrow, attackPoint.position, transform.rotation);
     }
 
     private void AttackCooldown()
@@ -235,5 +271,7 @@ public class Player : MonoBehaviour
         Gizmos.color = Color.red;
         Gizmos.DrawLine(transform.position + colliderOffset, transform.position + Vector3.down * groundLength);
         Gizmos.DrawLine(transform.position - colliderOffset, transform.position + Vector3.down * groundLength);
+
+        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
     }
 }
