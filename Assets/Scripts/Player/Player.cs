@@ -5,17 +5,26 @@ using UnityEngine;
 public class Player : MonoBehaviour
 {
     [Header("Horizontal Movement")]
-    [SerializeField] float moveSpeed = 15f;
+    public float moveSpeed = 15f;
+    public float dashSpeed = 20f;
+    public float dashMaxCD = 2f;
+    public DashState dashState;
+
+    public enum DashState 
+    { 
+        Ready,
+        Dashing,
+        Cooldown
+    }
+
     private Vector2 movement;
-    private bool facingRight = true;
+    private float dashTimer = 0f;
+    private bool facingRight = true, dashing = false;
 
     [Header("Vertical Movement")]
-    [SerializeField] float jumpDelay = 0.25f;
-    [SerializeField] float jumpForce = 15f;
-    private float jumpTimer;
-    private bool dashReady = true;
-    private float dashTimer = 0f;
-    public float dashSpeed = 20f, dashMaxCD = 3f;
+    public float jumpDelay = 0.25f;
+    public float jumpForce = 15f;
+    private float jumpTimer = 0f;
 
     [Header("Components")]
     [SerializeField] Animator anim;
@@ -50,9 +59,7 @@ public class Player : MonoBehaviour
 
     private int attackCombo = 0;
     private float attackTimer = 0f;
-    private bool aiming = false;
-    private bool attacking = false;
-    private bool attackReady = true;
+    private bool aiming = false, attacking = false, attackReady = false, iFrames = false;
 
     // Start is called before the first frame update
     void Start()
@@ -68,21 +75,19 @@ public class Player : MonoBehaviour
         
         // Stop movement when attacking/aiming
         if (attacking || aiming) movement = new Vector2(0, 0);
-        else if (!attacking || !aiming) movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
+        else if (!attacking || !aiming && !dashing) movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
 
         onGround = Physics2D.Raycast(transform.position + colliderOffset, Vector2.down, groundLength, groundLayer) 
             || Physics2D.Raycast(transform.position - colliderOffset, Vector2.down, groundLength, groundLayer);
 
-        // Jump delay before hitting the ground
-        if (Input.GetButtonDown("Jump")) jumpTimer = Time.time + jumpDelay;
-
         // Disallow character flipping when attacking (does not apply to archer shooting)
-        if (!attacking) Flip();
+        if (!attacking && !dashing) Flip();
         //if ((movement.x > 0 && !facingRight) || (movement.x < 0 && facingRight))
 
-        if (!dashReady) DashCooldown();
+        // Jump delay before hitting the ground
+        if (Input.GetButtonDown("Jump") && !dashing) jumpTimer = Time.time + jumpDelay;
 
-        if (Input.GetKeyDown(KeyCode.LeftShift) && dashReady) Dash();
+        Dash();
 
         /// COMBAT INPUT ///
 
@@ -90,10 +95,10 @@ public class Player : MonoBehaviour
         if (!attackReady) AttackCooldown();
 
         // Melee attack for both characters
-        if (onGround) MeleeCombo();
+        if (onGround && !dashing) MeleeCombo();
 
         // Attack for archer
-        if (archer && attackReady) ArcherAttack();
+        if (archer && attackReady && !dashing) ArcherAttack();
     }
 
     private void FixedUpdate()
@@ -101,7 +106,7 @@ public class Player : MonoBehaviour
         // Character movement with direction
         Movement(movement.x);
 
-        if (jumpTimer > Time.time && onGround && !attacking)
+        if (jumpTimer > Time.time && onGround && !attacking && !dashing)
             Jump();
 
         ModifyPhysics();
@@ -120,7 +125,7 @@ public class Player : MonoBehaviour
 
     void Jump()
     {
-        rb.drag = 0;
+        //rb.drag = 0;
         jumpTimer = 0f;
         anim.SetTrigger("jump");
         rb.velocity = new Vector2(rb.velocity.x, 0);
@@ -129,23 +134,50 @@ public class Player : MonoBehaviour
 
     void Dash()
     {
-        dashReady = false;
-        anim.SetTrigger("dash");
-        if (transform.rotation.y == 0)
-            rb.AddForce(Vector2.right * dashSpeed, ForceMode2D.Impulse);
-        else
-            rb.AddForce(Vector2.left * dashSpeed, ForceMode2D.Impulse);
+        switch (dashState)
+        {
+            case DashState.Ready:
+                var isDashKeyDown = Input.GetKeyDown(KeyCode.LeftShift);
+                if (isDashKeyDown)
+                {
+                    dashing = true;
+                    anim.SetTrigger("dash");
+                    anim.SetBool("dashing", true);
+                    dashState = DashState.Dashing;
+                }
+                break;
+            case DashState.Dashing:
+
+                if (facingRight)
+                    rb.velocity = new Vector2(2 * dashSpeed, rb.velocity.y);
+                else
+                    rb.velocity = new Vector2(-2 * dashSpeed, rb.velocity.y);
+
+                break;
+            case DashState.Cooldown:
+                if (dashTimer < dashMaxCD)
+                    dashTimer += Time.deltaTime;
+                else if (dashTimer >= dashMaxCD)
+                {
+                    dashTimer = 0f;
+                    dashState = DashState.Ready;
+                }
+                break;
+        }
     }
 
-    void DashCooldown()
+    void DashDone()
     {
-        if (dashTimer < dashMaxCD)
-            dashTimer += Time.deltaTime;
-        else if (dashTimer >= dashMaxCD)
-        {
-            dashTimer = 0f;
-            dashReady = true;
-        }
+        dashState = DashState.Cooldown;
+
+        dashing = false;
+        anim.ResetTrigger("dash");
+        anim.SetBool("dashing", false);
+    }
+
+    void SetIframes(int status)
+    {
+        iFrames = status == 0 ? false : true;
     }
 
     void Flip()
@@ -193,12 +225,15 @@ public class Player : MonoBehaviour
 
     public void TakeDamage(int damage)
     {
-        // launch the player in the direction
-        currentHealth -= damage;
-        // player hurt sound
+        if (!iFrames)
+        {
+            // launch the player in the direction
+            currentHealth -= damage;
+            // player hurt sound
 
-        if (currentHealth <= 0)
-            Die();
+            if (currentHealth <= 0)
+                Die();
+        }
     }
 
     private void Die()
@@ -258,6 +293,7 @@ public class Player : MonoBehaviour
     {
         aiming = false;
         attackCombo = 0;
+        dashing = false;
         attacking = false;
         anim.SetBool("meleeOne", false);
         anim.SetBool("meleeTwo", false);

@@ -1550,10 +1550,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 10
+  dashSpeed: 5
+  dashMaxCD: 0
+  dashState: 0
   jumpDelay: 0.1
   jumpForce: 8
-  dashSpeed: 200
-  dashMaxCD: 3
   anim: {fileID: 1507824311}
   groundLayer:
     serializedVersion: 2
