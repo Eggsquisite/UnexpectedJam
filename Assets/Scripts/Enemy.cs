@@ -51,10 +51,10 @@ public class Enemy : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        anim.SetFloat("direction", Mathf.Sign(direction));
+        anim.SetFloat("direction", Mathf.Abs(direction));
 
-        RaycastHit2D hit = Physics2D.Raycast(transform.position + offset, transform.position + Vector3.right * attackDistance);
-        if (hit.collider.tag == "Player")
+        RaycastHit2D hit = Physics2D.Raycast(transform.position + offset, transform.position + Vector3.right * attackDistance, playerLayer);
+        if (hit.collider != null && hit.collider.tag == "Player")
             AnimateAttack();
 
         if (movementCD)
@@ -101,17 +101,24 @@ public class Enemy : MonoBehaviour
 
     private void AnimateAttack()
     {
-        rb.velocity = Vector2.zero;
         pauseMovement = true;
+        rb.velocity = Vector2.zero;
         anim.SetTrigger("attack");
     }
 
     private void Attack()
     {
-        Collider2D[] playersHit = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, playerLayer);
+        if (!movementCD)
+        {
+            pauseMovement = true;
+            rb.velocity = Vector2.zero;
+            Collider2D[] playersHit = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, playerLayer);
 
-        foreach(Collider2D player in playersHit)
-            player.GetComponent<Player>().TakeDamage(damage);
+            foreach (Collider2D player in playersHit)
+                player.GetComponent<Player>().TakeDamage(damage);
+        }
+        else
+            return;
     }
 
     private void Shake()

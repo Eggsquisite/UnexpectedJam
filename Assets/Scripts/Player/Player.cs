@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
+    public enum PlayerClass{ Archer, Soldier};
+    public PlayerClass playerClass;
+
     [Header("Horizontal Movement")]
     public float moveSpeed = 15f;
     public float dashSpeed = 20f;
@@ -15,7 +18,7 @@ public class Player : MonoBehaviour
         Ready,
         Dashing,
         Cooldown
-    }
+    };
 
     private Vector2 movement;
     private float dashTimer = 0f;
@@ -32,15 +35,15 @@ public class Player : MonoBehaviour
     private Rigidbody2D rb;
 
     [Header("Physics")]
-    [SerializeField] float maxSpeed = 7f;
-    [SerializeField] float linearDrag = 4f;
-    [SerializeField] float gravity = 1f;
-    [SerializeField] float fallMultiplier = 5f;
+    public float maxSpeed = 7f;
+    public float linearDrag = 4f;
+    public float gravity = 1f;
+    public float fallMultiplier = 5f;
 
     [Header("Collision")]
-    [SerializeField] float groundLength = 0.5f;
-    [SerializeField] Vector3 colliderOffset;
-     public bool onGround = false;
+    public float groundLength = 0.5f;
+    public Vector3 colliderOffset;
+    public bool onGround = false;
 
     [Header("Player Stats")]
     public int maxHealth = 50;
@@ -50,8 +53,6 @@ public class Player : MonoBehaviour
     public GameObject arrow;
     public Transform attackPoint;
     public LayerMask enemyLayers;
-    public bool archer = false;
-    public bool soldier = false;
     public float attackCD = 1f;
     public float attackRange = 0.25f;
     public int lightDmg = 10;
@@ -103,7 +104,7 @@ public class Player : MonoBehaviour
             MeleeCombo();
 
         // Attack for archer
-        if (archer && attackReady && !dashing) 
+        if (playerClass == PlayerClass.Archer && attackReady && !dashing) 
             ArcherAttack();
     }
 
@@ -363,8 +364,8 @@ public class Player : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
-        Gizmos.DrawLine(transform.position + colliderOffset, transform.position + Vector3.down * groundLength);
-        Gizmos.DrawLine(transform.position - colliderOffset, transform.position + Vector3.down * groundLength);
+        Gizmos.DrawLine(transform.position + colliderOffset, transform.position + colliderOffset + Vector3.down * groundLength);
+        Gizmos.DrawLine(transform.position - colliderOffset, transform.position - colliderOffset + Vector3.down * groundLength);
 
         Gizmos.DrawWireSphere(attackPoint.position, attackRange);
     }

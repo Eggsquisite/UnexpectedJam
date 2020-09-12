@@ -1549,6 +1549,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7aac92a8448d25d48ab889226ca4d3b7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerClass: 0
   moveSpeed: 10
   dashSpeed: 75
   dashMaxCD: 0
@@ -1572,8 +1573,6 @@ MonoBehaviour:
   enemyLayers:
     serializedVersion: 2
     m_Bits: 2048
-  archer: 1
-  soldier: 0
   attackCD: 0.33
   attackRange: 0.6
   lightDmg: 5
@@ -1947,10 +1946,11 @@ MonoBehaviour:
   moveSpeed: 2
   maxSpeed: 10
   direction: 1
+  pauseCooldown: 2
   playerLayer:
     serializedVersion: 2
     m_Bits: 256
-  offset: {x: 0.4, y: 0, z: 0}
+  offset: {x: 0.5, y: 0, z: 0}
   attackRange: 0.5
   attackDistance: 1
   damage: 10
