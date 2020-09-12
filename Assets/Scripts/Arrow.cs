@@ -31,7 +31,10 @@ public class Arrow : MonoBehaviour
     void Update()
     {
         facingRight = transform.rotation.y == 0 ? true : false;
+    }
 
+    void FixedUpdate()
+    { 
         if (!hit)
             transform.position += facingRight ? (Vector3.right * speed * Time.deltaTime) : (Vector3.left * speed * Time.deltaTime);
     }

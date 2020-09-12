@@ -74,37 +74,46 @@ public class Player : MonoBehaviour
         /// MOVEMENT INPUT ///
         
         // Stop movement when attacking/aiming
-        if (attacking || aiming) movement = new Vector2(0, 0);
-        else if (!attacking || !aiming && !dashing) movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
+        if (attacking || aiming) 
+            movement = new Vector2(0, 0);
+        else if (!attacking || !aiming && !dashing) 
+            movement = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
 
         onGround = Physics2D.Raycast(transform.position + colliderOffset, Vector2.down, groundLength, groundLayer) 
             || Physics2D.Raycast(transform.position - colliderOffset, Vector2.down, groundLength, groundLayer);
 
         // Disallow character flipping when attacking (does not apply to archer shooting)
-        if (!attacking && !dashing) Flip();
-        //if ((movement.x > 0 && !facingRight) || (movement.x < 0 && facingRight))
+        if (!attacking && !dashing) 
+            Flip();
 
         // Jump delay before hitting the ground
-        if (Input.GetButtonDown("Jump") && !dashing) jumpTimer = Time.time + jumpDelay;
+        if (Input.GetButtonDown("Jump") && !dashing) 
+            jumpTimer = Time.time + jumpDelay;
 
-        Dash();
+        DashInput();
 
         /// COMBAT INPUT ///
 
         // Cooldown for attacks
-        if (!attackReady) AttackCooldown();
+        if (!attackReady) 
+            AttackCooldown();
 
         // Melee attack for both characters
-        if (onGround && !dashing) MeleeCombo();
+        if (onGround && !dashing) 
+            MeleeCombo();
 
         // Attack for archer
-        if (archer && attackReady && !dashing) ArcherAttack();
+        if (archer && attackReady && !dashing) 
+            ArcherAttack();
     }
 
     private void FixedUpdate()
     {
         // Character movement with direction
         Movement(movement.x);
+
+        if (dashing)
+            Dashing();
 
         if (jumpTimer > Time.time && onGround && !attacking && !dashing)
             Jump();
@@ -132,15 +141,14 @@ public class Player : MonoBehaviour
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
     }
 
-    void Dash()
+    void DashInput()
     {
         switch (dashState)
         {
             case DashState.Ready:
                 var isDashKeyDown = Input.GetKeyDown(KeyCode.LeftShift);
-                if (isDashKeyDown)
+                if (isDashKeyDown && onGround)
                 {
-                    dashing = true;
                     anim.SetTrigger("dash");
                     anim.SetBool("dashing", true);
                     dashState = DashState.Dashing;
@@ -148,13 +156,15 @@ public class Player : MonoBehaviour
                 break;
             case DashState.Dashing:
 
-                if (facingRight)
-                    rb.velocity = new Vector2(2 * dashSpeed, rb.velocity.y);
-                else
-                    rb.velocity = new Vector2(-2 * dashSpeed, rb.velocity.y);
+                dashing = true;
+                //Dashing();
 
                 break;
             case DashState.Cooldown:
+                dashing = false;
+                anim.ResetTrigger("dash");
+                anim.SetBool("dashing", false);
+
                 if (dashTimer < dashMaxCD)
                     dashTimer += Time.deltaTime;
                 else if (dashTimer >= dashMaxCD)
@@ -166,13 +176,18 @@ public class Player : MonoBehaviour
         }
     }
 
+    void Dashing()
+    {
+        if (facingRight)
+            rb.AddForce(Vector2.right * dashSpeed);
+        else
+            rb.AddForce(Vector2.left * dashSpeed);
+    }
+
+    // Called during animation
     void DashDone()
     {
         dashState = DashState.Cooldown;
-
-        dashing = false;
-        anim.ResetTrigger("dash");
-        anim.SetBool("dashing", false);
     }
 
     void SetIframes(int status)

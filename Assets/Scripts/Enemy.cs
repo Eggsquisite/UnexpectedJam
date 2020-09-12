@@ -14,9 +14,19 @@ public class Enemy : MonoBehaviour
     public int maxHealth = 50;
     private int currentHealth;
 
+    [Header("Movement")]
+    public float moveSpeed = 5f;
+    public float maxSpeed = 20f;
+    public float direction = 0f;
+    public float pauseCooldown = 2f;
+    private float pauseTimer = 0f;
+    private bool pauseMovement = false, movementCD = false;
+
     [Header("Combat")]
     public LayerMask playerLayer;
+    public Vector3 offset;
     public float attackRange = 0.5f;
+    public float attackDistance = 1f;
     public int damage = 10;
     public float shakeMagnitude = 0.015f, shakeDuration = 0.5f;
     public bool dead = false;
@@ -26,9 +36,8 @@ public class Enemy : MonoBehaviour
 
     [Header("SFX")]
     public AudioClip hurtSFX;
+    public AudioClip attackSFX;
 
-    [Header("Movement")]
-    public float moveSpeed = 5f;
 
     // Start is called before the first frame update
     void Start()
@@ -42,10 +51,60 @@ public class Enemy : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        anim.SetFloat("direction", Mathf.Sign(direction));
+
+        RaycastHit2D hit = Physics2D.Raycast(transform.position + offset, transform.position + Vector3.right * attackDistance);
+        if (hit.collider.tag == "Player")
+            AnimateAttack();
+
+        if (movementCD)
+            MovementCD();
+    }
+
+    void FixedUpdate()
+    {
+        if (!pauseMovement)
+            Movement(direction);
+    }
+
+    // MOVEMENT ////////////////////////////////////////////////////////////////////
+
+    void Movement(float direction)
+    {
+        if (direction > 0)
+            rb.AddForce(Vector2.right * moveSpeed);
+        else if (direction < 0)
+            rb.AddForce(Vector2.left * moveSpeed);
+
+        if (rb.velocity.x > maxSpeed)
+            rb.velocity = new Vector2(Mathf.Sign(direction) * maxSpeed, rb.velocity.y);
+    }
+
+    void MovementCD()
+    {
+        if (pauseTimer < pauseCooldown)
+            pauseTimer += Time.deltaTime;
+        else if (pauseTimer >= pauseCooldown)
+        {
+            pauseTimer = 0f;
+            movementCD = false;
+        }
+    }
+
+    void ResumingMovement()
+    {
+        movementCD = true;
+        pauseMovement = false;
     }
 
     // COMBAT //////////////////////////////////////////////////////////////////////
+
+    private void AnimateAttack()
+    {
+        rb.velocity = Vector2.zero;
+        pauseMovement = true;
+        anim.SetTrigger("attack");
+    }
 
     private void Attack()
     {
@@ -112,6 +171,7 @@ public class Enemy : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
+        //Gizmos.DrawWireSphere(attackPoint.position, attackRange);
+        Gizmos.DrawLine(transform.position + offset, transform.position + Vector3.right * attackDistance);
     }
 }
