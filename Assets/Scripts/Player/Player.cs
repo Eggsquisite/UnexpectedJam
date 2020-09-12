@@ -60,7 +60,7 @@ public class Player : MonoBehaviour
 
     private int attackCombo = 0;
     private float attackTimer = 0f;
-    private bool aiming = false, attacking = false, attackReady = false, iFrames = false;
+    private bool aiming = false, attacking = false, attackReady = false, iFrames = false, dead = false;
 
     // Start is called before the first frame update
     void Start()
@@ -72,6 +72,9 @@ public class Player : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (dead)
+            return;
+
         /// MOVEMENT INPUT ///
         
         // Stop movement when attacking/aiming
@@ -110,6 +113,9 @@ public class Player : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (dead)
+            return;
+
         // Character movement with direction
         Movement(movement.x);
 
@@ -254,7 +260,11 @@ public class Player : MonoBehaviour
 
     private void Die()
     {
+        dead = true;
+        tag = "Dead";
+        iFrames = true;
         anim.SetTrigger("death");
+        rb.velocity = Vector3.zero;
         // Destroy gameObject 
     }
 

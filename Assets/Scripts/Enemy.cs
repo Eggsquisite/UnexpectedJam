@@ -40,7 +40,6 @@ public class Enemy : MonoBehaviour
     private bool followPlayer;
     public float followRange;
     public float groundLength;
-    private bool rightGround = false, leftGround = false;
     private RaycastHit2D ground;
     private RaycastHit2D rightWall;
     private RaycastHit2D leftWall;
@@ -64,6 +63,9 @@ public class Enemy : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (dead)
+            return;
+
         anim.SetFloat("direction", Mathf.Abs(direction));
 
         RaycastHit2D hit = Physics2D.Raycast(transform.position + offset, transform.position + Vector3.right * attackDistance, playerLayer);
@@ -79,6 +81,9 @@ public class Enemy : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (dead)
+            return;
+
         if (!pauseMovement)
             Movement(direction);
 
@@ -161,21 +166,17 @@ public class Enemy : MonoBehaviour
 
     private void Attack()
     {
-        if (!movementCD)
-        {
             pauseMovement = true;
             rb.velocity = Vector2.zero;
             Collider2D[] playersHit = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, playerLayer);
 
             foreach (Collider2D player in playersHit)
                 player.GetComponent<Player>().TakeDamage(damage);
-        }
-        else
-            return;
     }
 
     private void Shake()
     {
+        hit = true;
         initPos = transform.position;
         InvokeRepeating("StartShake", 0f, 0.005f);
         Invoke("StopShake", shakeDuration);
@@ -205,7 +206,6 @@ public class Enemy : MonoBehaviour
     {
         if (!dead)
         {
-            hit = true;
             currentHealth -= dmg;
             if (currentHealth <= 0)
                 Die();
@@ -222,6 +222,7 @@ public class Enemy : MonoBehaviour
         dead = true;
         tag = "Dead";
         anim.SetTrigger("die");
+        rb.velocity = Vector3.zero; 
 
         foreach (Transform child in transform)
             GameObject.Destroy(child.gameObject);
