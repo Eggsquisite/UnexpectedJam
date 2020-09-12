@@ -1814,7 +1814,7 @@ Rigidbody2D:
   m_Material: {fileID: 0}
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 4
 --- !u!212 &2022317664
 SpriteRenderer:
@@ -1950,17 +1950,15 @@ MonoBehaviour:
   playerLayer:
     serializedVersion: 2
     m_Bits: 256
-  offset: {x: 0, y: 0, z: 0}
+  offset: {x: 0.5, y: 0, z: 0}
   attackRange: 0.5
-  attackDistance: 0.7
+  attackDistance: 0.6
+  dashSpeed: 5
   damage: 10
   shakeMagnitude: 0.04
   shakeDuration: 0.5
   dead: 0
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  groundOffset: {x: 0.5, y: 0, z: 0}
+  groundOffset: {x: 1, y: 0, z: 0}
   followRange: 0
   groundLength: 1
   hurtSFX: {fileID: 0}

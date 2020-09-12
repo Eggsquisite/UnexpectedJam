@@ -27,6 +27,7 @@ public class Enemy : MonoBehaviour
     public Vector3 offset;
     public float attackRange = 0.5f;
     public float attackDistance = 1f;
+    public float dashSpeed;
     public int damage = 10;
     public float shakeMagnitude = 0.015f, shakeDuration = 0.5f;
     public bool dead = false;
@@ -35,12 +36,11 @@ public class Enemy : MonoBehaviour
     private bool hit = false;
 
     [Header("Collision")]
-    public LayerMask groundLayer;
     public Vector3 groundOffset;
     private bool followPlayer;
     public float followRange;
     public float groundLength;
-    private RaycastHit2D ground;
+    private RaycastHit2D detectPlayer;
     private RaycastHit2D rightWall;
     private RaycastHit2D leftWall;
     private RaycastHit2D rightLedge;
@@ -68,9 +68,6 @@ public class Enemy : MonoBehaviour
 
         anim.SetFloat("direction", Mathf.Abs(direction));
 
-        RaycastHit2D hit = Physics2D.Raycast(transform.position + offset, transform.position + Vector3.right * attackDistance, playerLayer);
-        if (hit.collider != null && hit.collider.tag == "Player")
-            AnimateAttack();
 
         if (movementCD)
             MovementCD();
@@ -84,25 +81,12 @@ public class Enemy : MonoBehaviour
         if (dead)
             return;
 
+        AnimateAttack();
+
         if (!pauseMovement)
             Movement(direction);
 
-        rightLedge = Physics2D.Raycast(new Vector2(transform.position.x + groundOffset.x, transform.position.y), Vector2.down, groundLength);
-        Debug.DrawRay(new Vector2(transform.position.x + groundOffset.x, transform.position.y), Vector2.down, Color.blue);
-        if (rightLedge.collider == null) { 
-            direction = -1;
-            Debug.Log(rightLedge.collider);
-        }
-
-        leftLedge = Physics2D.Raycast(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, groundLength);
-        Debug.DrawRay(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, Color.blue);
-        if (leftLedge.collider == null)
-            direction = 1;
-
-        //leftLedge = Physics2D.Raycast(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, groundLength);
-        // Debug.DrawLine(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, Color.red);
-        //if (leftLedge.collider == null)
-        //direction = 1;
+        EdgeChecks();
     }
 
     void Flip()
@@ -147,8 +131,19 @@ public class Enemy : MonoBehaviour
     }
 
     void EdgeChecks()
-    { 
-    
+    {
+        rightLedge = Physics2D.Raycast(new Vector2(transform.position.x + groundOffset.x, transform.position.y), Vector2.down, groundLength);
+        Debug.DrawRay(new Vector2(transform.position.x + groundOffset.x, transform.position.y), Vector2.down, Color.blue);
+        if (rightLedge.collider == null)
+        {
+            direction = -1;
+            Debug.Log(rightLedge.collider);
+        }
+
+        leftLedge = Physics2D.Raycast(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, groundLength);
+        Debug.DrawRay(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, Color.blue);
+        if (leftLedge.collider == null)
+            direction = 1;
     }
 
     // COLLISIONS AND RAYCASTING ///////////////////////////////////////////////////
@@ -159,9 +154,23 @@ public class Enemy : MonoBehaviour
 
     private void AnimateAttack()
     {
-        pauseMovement = true;
-        rb.velocity = Vector2.zero;
-        anim.SetTrigger("attack");
+        if (direction > 0) { 
+            detectPlayer = Physics2D.Raycast(new Vector2(transform.position.x + offset.x, transform.position.y), transform.position + Vector3.right * attackDistance, playerLayer);
+            Debug.DrawRay(new Vector2(transform.position.x + offset.x, transform.position.y), transform.position + Vector3.right * attackDistance, Color.black);
+        }
+        //else
+            //detectPlayer = Physics2D.Raycast(new Vector2(transform.position.x - offset.x, transform.position.y), Vector3.left, attackDistance);
+
+        if (detectPlayer.collider != null && detectPlayer.collider.tag == "Player")
+        {
+            Debug.Log(detectPlayer.collider.name);
+            pauseMovement = true;
+            rb.velocity = Vector2.zero;
+            anim.SetTrigger("attack");
+
+            if (direction > 0)
+                rb.AddForce(Vector2.right * dashSpeed, ForceMode2D.Impulse);
+        }
     }
 
     private void Attack()
@@ -234,7 +243,6 @@ public class Enemy : MonoBehaviour
     {
         Gizmos.color = Color.red;
         //Gizmos.DrawWireSphere(attackPoint.position, attackRange);
-        Gizmos.DrawLine(transform.position + offset, transform.position + Vector3.right * attackDistance);
 
         //Gizmos.DrawLine(transform.position + groundOffset, transform.position + groundOffset + Vector3.down * groundLength);
         //Gizmos.DrawLine(transform.position - groundOffset, transform.position - groundOffset + Vector3.down * groundLength);
