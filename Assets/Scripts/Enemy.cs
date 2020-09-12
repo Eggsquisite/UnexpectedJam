@@ -20,7 +20,7 @@ public class Enemy : MonoBehaviour
     public float direction = 0f;
     public float pauseCooldown = 2f;
     private float pauseTimer = 0f;
-    private bool pauseMovement = false, movementCD = false;
+    private bool pauseMovement = false, movementCD = false, facingRight = true;
 
     [Header("Combat")]
     public LayerMask playerLayer;
@@ -33,6 +33,19 @@ public class Enemy : MonoBehaviour
 
     private Vector3 initPos;
     private bool hit = false;
+
+    [Header("Collision")]
+    public LayerMask groundLayer;
+    public Vector3 groundOffset;
+    private bool followPlayer;
+    public float followRange;
+    public float groundLength;
+    private bool rightGround = false, leftGround = false;
+    private RaycastHit2D ground;
+    private RaycastHit2D rightWall;
+    private RaycastHit2D leftWall;
+    private RaycastHit2D rightLedge;
+    private RaycastHit2D leftLedge;
 
     [Header("SFX")]
     public AudioClip hurtSFX;
@@ -59,12 +72,42 @@ public class Enemy : MonoBehaviour
 
         if (movementCD)
             MovementCD();
+
+        Flip();
+
     }
 
     void FixedUpdate()
     {
         if (!pauseMovement)
             Movement(direction);
+
+        rightLedge = Physics2D.Raycast(new Vector2(transform.position.x + groundOffset.x, transform.position.y), Vector2.down, groundLength);
+        Debug.DrawRay(new Vector2(transform.position.x + groundOffset.x, transform.position.y), Vector2.down, Color.blue);
+        if (rightLedge.collider == null) { 
+            direction = -1;
+            Debug.Log(rightLedge.collider);
+        }
+
+        leftLedge = Physics2D.Raycast(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, groundLength);
+        Debug.DrawRay(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, Color.blue);
+        if (leftLedge.collider == null)
+            direction = 1;
+
+        //leftLedge = Physics2D.Raycast(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, groundLength);
+        // Debug.DrawLine(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.down, Color.red);
+        //if (leftLedge.collider == null)
+        //direction = 1;
+    }
+
+    void Flip()
+    {
+        if (rb.velocity.x > 0.01f && !facingRight || rb.velocity.x < -0.01f && facingRight)
+        {
+            facingRight = !facingRight;
+            transform.rotation = Quaternion.Euler(0, facingRight ? 0 : 180, 0);
+            //transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
+        }
     }
 
     // MOVEMENT ////////////////////////////////////////////////////////////////////
@@ -76,8 +119,9 @@ public class Enemy : MonoBehaviour
         else if (direction < 0)
             rb.AddForce(Vector2.left * moveSpeed);
 
-        if (rb.velocity.x > maxSpeed)
+        if (Mathf.Abs(rb.velocity.x) > maxSpeed) { 
             rb.velocity = new Vector2(Mathf.Sign(direction) * maxSpeed, rb.velocity.y);
+        } 
     }
 
     void MovementCD()
@@ -96,6 +140,15 @@ public class Enemy : MonoBehaviour
         movementCD = true;
         pauseMovement = false;
     }
+
+    void EdgeChecks()
+    { 
+    
+    }
+
+    // COLLISIONS AND RAYCASTING ///////////////////////////////////////////////////
+
+
 
     // COMBAT //////////////////////////////////////////////////////////////////////
 
@@ -178,7 +231,12 @@ public class Enemy : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        Gizmos.color = Color.red;
         //Gizmos.DrawWireSphere(attackPoint.position, attackRange);
         Gizmos.DrawLine(transform.position + offset, transform.position + Vector3.right * attackDistance);
+
+        //Gizmos.DrawLine(transform.position + groundOffset, transform.position + groundOffset + Vector3.down * groundLength);
+        //Gizmos.DrawLine(transform.position - groundOffset, transform.position - groundOffset + Vector3.down * groundLength);
+
     }
 }
