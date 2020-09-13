@@ -155,11 +155,12 @@ public class Enemy : MonoBehaviour
     private void AnimateAttack()
     {
         if (direction > 0) { 
-            detectPlayer = Physics2D.Raycast(new Vector2(transform.position.x + offset.x, transform.position.y), transform.position + Vector3.right * attackDistance, playerLayer);
-            Debug.DrawRay(new Vector2(transform.position.x + offset.x, transform.position.y), transform.position + Vector3.right * attackDistance, Color.black);
+            detectPlayer = Physics2D.Raycast(new Vector2(transform.position.x + groundOffset.x, transform.position.y), Vector2.right, attackDistance, playerLayer);
+            Debug.DrawRay(new Vector2(transform.position.x + groundOffset.x, transform.position.y), Vector2.right * attackDistance, Color.blue);
+        } else {
+            detectPlayer = Physics2D.Raycast(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.left, attackDistance, playerLayer);
+            Debug.DrawRay(new Vector2(transform.position.x - groundOffset.x, transform.position.y), Vector2.left * attackDistance, Color.blue);
         }
-        //else
-            //detectPlayer = Physics2D.Raycast(new Vector2(transform.position.x - offset.x, transform.position.y), Vector3.left, attackDistance);
 
         if (detectPlayer.collider != null && detectPlayer.collider.tag == "Player")
         {
@@ -244,7 +245,7 @@ public class Enemy : MonoBehaviour
         Gizmos.color = Color.red;
         //Gizmos.DrawWireSphere(attackPoint.position, attackRange);
 
-        //Gizmos.DrawLine(transform.position + groundOffset, transform.position + groundOffset + Vector3.down * groundLength);
+        //Gizmos.DrawLine(transform.position + offset, transform.position + offset + Vector3.right * attackDistance);
         //Gizmos.DrawLine(transform.position - groundOffset, transform.position - groundOffset + Vector3.down * groundLength);
 
     }
